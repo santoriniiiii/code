@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presentador · Quiz en Vivo</title>
+<meta name="theme-color" content="#1b0f3b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  .wrap { max-width: 1100px; }
+  .hostbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
+  .lobby { display: grid; grid-template-columns: 1fr; gap: 22px; align-items: start; }
+  @media (min-width: 860px) { .lobby { grid-template-columns: 360px 1fr; } }
+  .joinbox { text-align: center; }
+  .joinbox .url { font: 700 24px "Fredoka", sans-serif; word-break: break-all; margin: 8px 0 16px; color: #4a2fbf; }
+  #qr { display: flex; justify-content: center; }
+  #qr img, #qr canvas { width: 230px !important; height: 230px !important; border-radius: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; min-height: 120px; }
+  .chip { background: #fff; color: var(--card-ink); font: 700 19px "Fredoka", sans-serif; padding: 10px 18px; border-radius: 999px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.2); animation: pop .4s cubic-bezier(.2,1.4,.4,1) both; }
+  .count { font: 700 64px "Fredoka", sans-serif; line-height: 1; }
+  .hq .qtext { font-size: clamp(26px, 3.6vw, 42px); padding: 34px 28px; }
+  .hq .answers { grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
+  .hq .ans { font-size: clamp(18px, 2.2vw, 26px); min-height: 100px; cursor: default; padding-left: 66px; }
+  .hq .ans .shape { width: 34px; height: 34px; }
+  .hq .ans.long { font-size: clamp(16px, 1.7vw, 21px); }
+  .hq .ans.xlong { font-size: clamp(14px, 1.4vw, 18px); }
+  .hq .qtext.rich .qmain { font-size: clamp(22px, 2.6vw, 32px); }
+  .hq .ctx { font-size: clamp(16px, 1.6vw, 20px); }
+  .hq .qtable { font-size: 18px; max-width: 620px; margin-left: auto; margin-right: auto; }
+  .hq .timer { width: 96px; height: 96px; }
+  .hq .timer svg { width: 96px; height: 96px; }
+  .hq .timer .num { font-size: 36px; }
+  .stat { text-align: center; }
+  .stat .n { font: 700 46px "Fredoka", sans-serif; line-height: 1; }
+  .stat .l { color: var(--muted); font-weight: 700; font-size: 14px; letter-spacing: .5px; }
+  .bars { display: flex; gap: 16px; align-items: flex-end; justify-content: center; height: 170px; margin: 20px 0 6px; }
+  .barcol { width: 90px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .barcol .v { font: 700 24px "Fredoka", sans-serif; margin-bottom: 6px; }
+  .barcol .b { width: 100%; border-radius: 12px 12px 0 0; min-height: 8px; transform-origin: bottom; animation: rise .7s cubic-bezier(.2,1.2,.4,1) both; display: grid; place-items: start center; padding-top: 8px; }
+  .reveal { display: grid; grid-template-columns: 1fr; gap: 24px; }
+  @media (min-width: 900px) { .reveal { grid-template-columns: 1.4fr 1fr; } }
+  .podiumHost .step { max-width: 260px; }
+  .podiumHost .step .who { font-size: 26px; }
+  .podiumHost .step.p1 .block { height: 260px; } .podiumHost .step.p2 .block { height: 190px; } .podiumHost .step.p3 .block { height: 140px; }
+  .actions { display: flex; justify-content: center; margin-top: 24px; }
+  .actions .btn { max-width: 380px; }
+</style>
+</head>
+<body>
+<div class="bg"><span></span><span></span><span></span></div>
+<main class="wrap" id="app"></main>
+<script src="/common.js"></script>
+<script>
+const app = document.getElementById("app");
+let pin = sessionStorage.getItem("hostPin") || "";
+let screen = "", state = null, deadline = 0, busy = false;
+const joinUrl = location.origin;
+
+function set(key, html) { if (key === screen) return false; screen = key; app.innerHTML = html; return true; }
+
+function bar(s) {
+  return `<div class="hostbar">
+    <div class="logo" style="font-size:34px">Quiz <b>en Vivo</b></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="pill">👥 <span id="pc">${s.playerCount}</span> jugadores</span>
+      <button class="btn ghost" id="resetBtn">↺ Nuevo juego</button>
+    </div></div>`;
+}
+function bindReset() {
+  const b = document.getElementById("resetBtn");
+  if (b) b.onclick = () => { if (confirm("¿Reiniciar el juego? Se borrarán los jugadores y puntajes.")) act("reset"); };
+}
+
+function renderLogin(msg) {
+  screen = "login";
+  app.innerHTML = `<div class="center">
+    <div class="logo">Quiz <b>en Vivo</b></div>
+    <p class="tag">Panel del presentador</p>
+    <form class="card" id="f" style="max-width:420px">
+      <input class="big" id="pin" type="password" inputmode="numeric" placeholder="PIN del presentador" autofocus>
+      <div style="height:14px"></div>
+      <button class="btn yellow">Entrar</button>
+      <div class="err">${esc(msg || "")}</div>
+    </form></div>`;
+  document.getElementById("f").onsubmit = (e) => { e.preventDefault(); pin = document.getElementById("pin").value.trim(); sessionStorage.setItem("hostPin", pin); screen = ""; poll(); };
+}
+
+function render(s) {
+  if (s.phase === "lobby") {
+    if (set("lobby:" + s.gameId, `${bar(s)}
+      <div class="lobby">
+        <div class="card joinbox">
+          <div style="font-weight:800;color:#6b5f8a">ENTRA DESDE TU CELULAR</div>
+          <div class="url">${esc(joinUrl.replace(/^https?:\/\//, ""))}</div>
+          <div id="qr"></div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+            <div class="count" id="cnt">0</div><div class="tag" style="font-size:20px">jugadores conectados</div>
+          </div>
+          <div class="chips" id="chips"><span class="tag" id="waiting">Esperando jugadores…</span></div>
+          <div class="actions" style="justify-content:flex-start">
+            <button class="btn yellow" id="startBtn" disabled>▶ Comenzar (${s.total} preguntas)</button>
+          </div>
+        </div>
+      </div>`)) {
+      bindReset();
+      try { new QRCode(document.getElementById("qr"), { text: joinUrl, width: 460, height: 460, colorDark: "#22163f", colorLight: "#ffffff" }); } catch {}
+      document.getElementById("startBtn").onclick = () => act("start");
+      app._shown = new Set();
+    }
+    document.getElementById("cnt").textContent = s.playerCount;
+    document.getElementById("pc").textContent = s.playerCount;
+    document.getElementById("startBtn").disabled = s.playerCount === 0;
+    const chips = document.getElementById("chips");
+    s.players.forEach((n) => {
+      if (app._shown.has(n)) return;
+      app._shown.add(n);
+      const w = document.getElementById("waiting"); if (w) w.remove();
+      const c = document.createElement("span"); c.className = "chip"; c.textContent = n; chips.appendChild(c);
+    });
+    return;
+  }
+
+  if (s.phase === "question") {
+    if (set("q:" + s.q, `${bar(s)}<div class="hq">
+      <div class="topbar">
+        <div class="stat"><div class="n">${s.q + 1}<span style="font-size:24px;color:var(--muted)">/${s.total}</span></div><div class="l">PREGUNTA</div>${s.question.level ? `<div style="margin-top:6px"><span class="lvl ${s.question.level}">${s.question.level}</span></div>` : ""}</div>
+        ${timerSVG()}
+        <div class="stat"><div class="n" id="answered">0</div><div class="l">RESPUESTAS</div></div>
+      </div>
+      ${questionHTML(s.question)}
+      <div class="answers">${s.question.options.map((o, i) => `<div class="ans o${i} fade${optionClass(o)}" style="animation-delay:${i * 80}ms">${SHAPES[i]}<span>${esc(o)}</span></div>`).join("")}</div>
+      <div class="actions"><button class="btn ghost" id="skip">Terminar tiempo ⏭</button></div>
+    </div>`)) {
+      bindReset();
+      document.getElementById("skip").onclick = () => act("reveal", { fromQ: s.q });
+    }
+    document.getElementById("answered").textContent = `${s.answered}/${s.playerCount}`;
+    return;
+  }
+
+  if (s.phase === "reveal") {
+    const d = s.distribution || [];
+    const max = Math.max(1, ...d);
+    const last = s.q + 1 >= s.total;
+    const ok = (i) => s.question.correct.includes(i);
+    if (set("reveal:" + s.q, `${bar(s)}<div class="hq">
+      <div class="qtext"><div class="qmain">${esc(s.question.text)}</div></div>
+      <div class="reveal" style="margin-top:22px">
+        <div>
+          <div class="bars">${d.map((v, i) => `<div class="barcol"><div class="v">${v}</div>
+            <div class="b" style="height:${(v / max) * 130 + 8}px;background:var(--c${i});${ok(i) ? "" : "opacity:.35"}">${ok(i) ? "✔" : ""}</div></div>`).join("")}</div>
+          <div class="answers">${s.question.options.map((o, i) => `<div class="ans o${i}${optionClass(o)} ${ok(i) ? "right" : "dim"}">${SHAPES[i]}<span>${esc(o)}</span>${ok(i) ? '<span class="check">✔</span>' : ""}</div>`).join("")}</div>
+        </div>
+        <div>
+          <h2 style="margin-bottom:12px">🏅 Top 5</h2>
+          <div class="lb">${(s.leaderboard || []).map((p, i) => `<div class="row" style="animation-delay:${i * 90}ms"><span class="pos">${i + 1}</span><span class="nm">${esc(p.name)}</span><span>${fmt(p.score)}</span></div>`).join("") || '<p class="tag">Sin jugadores</p>'}</div>
+        </div>
+      </div>
+      <div class="actions"><button class="btn yellow" id="next">${last ? "🏆 Ver podio" : "Siguiente pregunta ➜"}</button></div>
+    </div>`)) {
+      bindReset();
+      document.getElementById("next").onclick = () => act("next", { fromQ: s.q });
+    }
+    return;
+  }
+
+  if (s.phase === "podium") {
+    const p = s.leaderboard || [];
+    const step = (i, cls) => p[i] ? `<div class="step ${cls}">${i === 0 ? '<div class="crown" style="font-size:46px">👑</div>' : ""}
+      <div class="who">${esc(p[i].name)}</div><div class="score">${fmt(p[i].score)} pts</div><div class="block">${i + 1}</div></div>` : `<div class="step ${cls}"></div>`;
+    if (set("podium:" + s.gameId, `${bar(s)}<div class="center podiumHost">
+      <h1 style="font-size:48px">🏆 ¡Felicidades!</h1>
+      <div class="podium" style="max-width:820px">${step(1, "p2")}${step(0, "p1")}${step(2, "p3")}</div>
+      ${p.length > 3 ? `<div class="lb" style="max-width:560px;margin-top:10px">${p.slice(3).map((x, i) => `<div class="row" style="animation-delay:${3 + i * .1}s"><span class="pos">${i + 4}</span><span class="nm">${esc(x.name)}</span><span>${fmt(x.score)}</span></div>`).join("")}</div>` : ""}
+    </div>`)) {
+      bindReset();
+      setTimeout(() => confetti(8000), 2400);
+    }
+  }
+}
+
+async function act(action, extra) {
+  if (busy) return; busy = true;
+  try { await api("POST", { action, pin, ...(extra || {}) }); }
+  catch (e) { alert(e.message); }
+  finally { busy = false; poll(); }
+}
+
+let polling = false;
+async function poll() {
+  if (!pin) return renderLogin();
+  if (polling) return; polling = true;
+  try {
+    const s = await api("GET", { role: "host", pin });
+    state = s; deadline = Date.now() + (s.remaining || 0);
+    render(s);
+  } catch (e) {
+    if (e.status === 401) { pin = ""; sessionStorage.removeItem("hostPin"); renderLogin("PIN incorrecto"); }
+    else if (screen === "") app.innerHTML = `<div class="center"><div class="card"><h2>Ups…</h2><p style="margin-top:8px">${esc(e.message)}</p></div></div>`;
+  } finally { polling = false; }
+}
+
+setInterval(() => { if (screen !== "login") poll(); }, 1000);
+setInterval(() => {
+  if (state && state.phase === "question" && screen.startsWith("q:")) updateTimer(Math.max(0, deadline - Date.now()), state.duration);
+}, 200);
+poll();
+</script>
+</body>
+</html>

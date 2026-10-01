@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quiz en Vivo</title>
+<meta name="theme-color" content="#1b0f3b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="bg"><span></span><span></span><span></span></div>
+<main class="wrap" id="app">
+  <div class="center"><div class="dots"><span></span><span></span><span></span></div></div>
+</main>
+<script src="/common.js"></script>
+<script>
+const app = document.getElementById("app");
+let pid = store("pid");
+let screen = "";
+let state = null;
+let deadline = 0;
+let localAnswer = null; // {q, choice}
+let lastRank = null;
+
+function set(key, html) {
+  if (key === screen) return false;
+  screen = key;
+  app.innerHTML = html;
+  return true;
+}
+
+function header(s) {
+  return `<div class="topbar">
+    <span class="pill">👤 ${esc(s.name)}</span>
+    ${s.phase === "question" ? `<span class="pill">Pregunta ${s.q + 1}/${s.total}</span>` : `<span class="pill">⭐ ${fmt(s.myScore ?? 0)}</span>`}
+  </div>`;
+}
+
+function render(s) {
+  if (!s.joined) {
+    if (pid) { pid = null; store("pid", null); }
+    if (s.phase === "podium") {
+      return set("over", `<div class="center"><div class="logo">Quiz <b>en Vivo</b></div>
+        <div class="card"><h2>El juego ya terminó</h2><p style="margin-top:8px">Espera a que el presentador inicie uno nuevo.</p></div></div>`);
+    }
+    if (set("join", `<div class="center">
+        <div class="logo">Quiz <b>en Vivo</b></div>
+        <p class="tag">Escribe tu nombre para unirte a la partida</p>
+        <form class="card" id="joinForm" autocomplete="off">
+          <input class="big" id="name" maxlength="20" placeholder="Tu nombre" autofocus>
+          <div style="height:14px"></div>
+          <button class="btn yellow" id="joinBtn">¡Entrar!</button>
+          <div class="err" id="err"></div>
+        </form>
+      </div>`)) {
+      document.getElementById("joinForm").onsubmit = join;
+    }
+    return;
+  }
+
+  if (s.phase === "lobby") {
+    return set("lobby", `<div class="center fade">
+      <div style="font-size:64px">🎉</div>
+      <h1>¡Estás dentro, ${esc(s.name)}!</h1>
+      <p class="tag">¿Ves tu nombre en la pantalla? Espera a que el presentador comience.</p>
+      <div class="dots"><span></span><span></span><span></span></div>
+    </div>`);
+  }
+
+  if (s.phase === "question") {
+    const answered = s.myAnswer || (localAnswer && localAnswer.q === s.q);
+    if (answered) {
+      return set("sent:" + s.q, `${header(s)}<div class="center fade">
+        <div style="font-size:64px">🚀</div>
+        <h1>¡Respuesta enviada!</h1>
+        <p class="tag">¿Habrás acertado? Espera a que termine el tiempo…</p>
+        <div class="dots"><span></span><span></span><span></span></div></div>`);
+    }
+    if (s.remaining <= 0) {
+      return set("timeout:" + s.q, `${header(s)}<div class="center fade"><div style="font-size:64px">⏰</div><h1>¡Se acabó el tiempo!</h1></div>`);
+    }
+    if (set("q:" + s.q, `${header(s)}
+        <div style="display:flex;justify-content:center;margin-bottom:14px">${timerSVG()}</div>
+        ${questionHTML(s.question)}
+        <div class="answers">${s.question.options.map((o, i) =>
+          `<button class="ans o${i} fade${optionClass(o)}" style="animation-delay:${i * 60}ms" data-i="${i}">${SHAPES[i]}<span>${esc(o)}</span></button>`).join("")}
+        </div>`)) {
+      app.querySelectorAll(".ans").forEach((b) => (b.onclick = () => answer(s.q, Number(b.dataset.i))));
+    }
+    return;
+  }
+
+  if (s.phase === "reveal") {
+    const a = s.myAnswer;
+    const ok = a && s.correct.includes(a.c);
+    const cls = !a ? "none" : ok ? "ok" : "bad";
+    const title = !a ? "Sin respuesta" : ok ? "¡Correcto!" : "Incorrecto";
+    const icon = !a ? "😶" : ok ? "✅" : "❌";
+    const correctTxt = s.correct.map((i) => `${LETTERS[i]}. ${s.question.options[i]}`).join("<br>o<br>");
+    return set("reveal:" + s.q, `${header(s)}<div class="center">
+      <div class="result ${cls}">
+        <div style="font-size:56px">${icon}</div>
+        <div class="big">${title}</div>
+        ${ok ? `<div class="pts">+${fmt(a.p)} puntos</div>` : `<p style="margin-top:12px;font-size:17px">La respuesta correcta era:<br><b>${correctTxt.split("<br>o<br>").map(esc).join("<br>o<br>")}</b></p>`}
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:15px;color:#6b5f8a;font-weight:700">TU POSICIÓN</div>
+        <div class="display" style="font-size:44px">#${s.myRank} <span style="font-size:20px;color:#6b5f8a">de ${s.playerCount}</span></div>
+        <div style="font-weight:800">${fmt(s.myScore)} puntos</div>
+      </div>
+    </div>`);
+  }
+
+  if (s.phase === "podium") {
+    const p = s.podium || [];
+    const step = (i, cls) => p[i] ? `<div class="step ${cls}">${i === 0 ? '<div class="crown">👑</div>' : ""}
+        <div class="who">${esc(p[i].name)}</div><div class="score">${fmt(p[i].score)} pts</div>
+        <div class="block">${i + 1}</div></div>` : `<div class="step ${cls}"></div>`;
+    if (set("podium", `<div class="center">
+        <h1 style="font-size:36px">🏆 Podio final</h1>
+        <div class="podium">${step(1, "p2")}${step(0, "p1")}${step(2, "p3")}</div>
+        <div class="card fade" style="text-align:center;animation-delay:2.8s">
+          <div style="font-size:15px;color:#6b5f8a;font-weight:700">TERMINASTE EN EL PUESTO</div>
+          <div class="display" style="font-size:44px">#${s.myRank}</div>
+          <div style="font-weight:800">${fmt(s.myScore)} puntos</div>
+        </div></div>`)) {
+      if (s.myRank <= 3) setTimeout(() => confetti(6000), 2400);
+    }
+  }
+}
+
+async function join(e) {
+  e.preventDefault();
+  const btn = document.getElementById("joinBtn"), err = document.getElementById("err");
+  const name = document.getElementById("name").value.trim();
+  if (name.length < 2) { err.textContent = "Escribe un nombre de al menos 2 letras"; return; }
+  btn.disabled = true; err.textContent = "";
+  try {
+    const r = await api("POST", { action: "join", name });
+    pid = r.pid; store("pid", pid);
+    poll();
+  } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+}
+
+async function answer(q, choice) {
+  if (localAnswer && localAnswer.q === q) return;
+  localAnswer = { q, choice };
+  app.querySelectorAll(".ans").forEach((b, i) => { b.disabled = true; if (i !== choice) b.classList.add("dim"); });
+  if (navigator.vibrate) navigator.vibrate(30);
+  try { await api("POST", { action: "answer", pid, choice, q }); }
+  catch (e) { /* si llegó tarde, el servidor la ignora */ }
+  if (state) render({ ...state });
+}
+
+let polling = false;
+async function poll() {
+  if (polling) return;
+  polling = true;
+  try {
+    const s = await api("GET", pid ? { pid } : {});
+    state = s;
+    deadline = Date.now() + (s.remaining || 0);
+    render(s);
+  } catch (e) {
+    if (screen === "") app.innerHTML = `<div class="center"><div class="card"><h2>Ups…</h2><p style="margin-top:8px">${esc(e.message)}</p></div></div>`;
+  } finally { polling = false; }
+}
+
+setInterval(poll, 1200);
+setInterval(() => {
+  if (state && state.phase === "question" && screen.startsWith("q:")) {
+    const rem = Math.max(0, deadline - Date.now());
+    updateTimer(rem, state.duration);
+    if (rem <= 0) render({ ...state, remaining: 0 });
+  }
+}, 200);
+poll();
+</script>
+</body>
+</html>
