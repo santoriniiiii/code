@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Quiz en Vivo</title>
+<title>FarIQ: Quiz</title>
 <meta name="theme-color" content="#1b0f3b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +15,7 @@
 <main class="wrap" id="app">
   <div class="center"><div class="dots"><span></span><span></span><span></span></div></div>
 </main>
+<footer class="credit">Hecho por: Sebastian Farías</footer>
 <script src="/common.js"></script>
 <script>
 const app = document.getElementById("app");
@@ -43,11 +44,11 @@ function render(s) {
   if (!s.joined) {
     if (pid) { pid = null; store("pid", null); }
     if (s.phase === "podium") {
-      return set("over", `<div class="center"><div class="logo">Quiz <b>en Vivo</b></div>
+      return set("over", `<div class="center"><div class="logo">FarIQ<b>: Quiz</b></div>
         <div class="card"><h2>El juego ya terminó</h2><p style="margin-top:8px">Espera a que el presentador inicie uno nuevo.</p></div></div>`);
     }
     if (set("join", `<div class="center">
-        <div class="logo">Quiz <b>en Vivo</b></div>
+        <div class="logo">FarIQ<b>: Quiz</b></div>
         <p class="tag">Escribe tu nombre para unirte a la partida</p>
         <form class="card" id="joinForm" autocomplete="off">
           <input class="big" id="name" maxlength="20" placeholder="Tu nombre" autofocus>

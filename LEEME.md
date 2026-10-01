@@ -1,4 +1,4 @@
-# Quiz en Vivo
+# FarIQ: Quiz
 
 Juego tipo Kahoot en vivo: 30 segundos por pregunta, puntos extra por rapidez y podio al final.
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Presentador · Quiz en Vivo</title>
+<title>Presentador · FarIQ: Quiz</title>
 <meta name="theme-color" content="#1b0f3b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,6 +54,7 @@
 <body>
 <div class="bg"><span></span><span></span><span></span></div>
 <main class="wrap" id="app"></main>
+<footer class="credit">Hecho por: Sebastian Farías</footer>
 <script src="/common.js"></script>
 <script>
 const app = document.getElementById("app");
@@ -65,7 +66,7 @@ function set(key, html) { if (key === screen) return false; screen = key; app.in
 
 function bar(s) {
   return `<div class="hostbar">
-    <div class="logo" style="font-size:34px">Quiz <b>en Vivo</b></div>
+    <div class="logo" style="font-size:34px">FarIQ<b>: Quiz</b></div>
     <div style="display:flex;gap:10px;align-items:center">
       <span class="pill">👥 <span id="pc">${s.playerCount}</span> jugadores</span>
       <button class="btn ghost" id="resetBtn">↺ Nuevo juego</button>
@@ -79,7 +80,7 @@ function bindReset() {
 function renderLogin(msg) {
   screen = "login";
   app.innerHTML = `<div class="center">
-    <div class="logo">Quiz <b>en Vivo</b></div>
+    <div class="logo">FarIQ<b>: Quiz</b></div>
     <p class="tag">Panel del presentador</p>
     <form class="card" id="f" style="max-width:420px">
       <input class="big" id="pin" type="password" inputmode="numeric" placeholder="PIN del presentador" autofocus>

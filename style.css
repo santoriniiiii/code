@@ -16,6 +16,8 @@ body {
   color: var(--ink);
   background: var(--bg);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
 }
@@ -29,7 +31,8 @@ body {
 @keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,-30px) scale(1.12); } }
 
 h1, h2, h3, .display { font-family: "Fredoka", "Nunito", sans-serif; font-weight: 600; letter-spacing: .2px; }
-.wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 40px; min-height: 100vh; display: flex; flex-direction: column; }
+.wrap { max-width: 560px; width: 100%; margin: 0 auto; padding: 24px 16px 24px; flex: 1 0 auto; display: flex; flex-direction: column; }
+.credit { text-align: center; color: var(--muted); font-size: 14px; font-weight: 700; padding: 0 16px calc(18px + env(safe-area-inset-bottom)); }
 .center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px; }
 
 .logo { font-family: "Fredoka", sans-serif; font-weight: 700; font-size: clamp(40px, 10vw, 64px); line-height: 1;
