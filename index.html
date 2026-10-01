@@ -84,7 +84,7 @@ function render(s) {
       return set("timeout:" + s.q, `${header(s)}<div class="center fade"><div style="font-size:64px">⏰</div><h1>¡Se acabó el tiempo!</h1></div>`);
     }
     if (set("q:" + s.q, `${header(s)}
-        <div style="display:flex;justify-content:center;margin-bottom:14px">${timerSVG()}</div>
+        <div style="display:flex;justify-content:center;margin-bottom:14px">${timerSVG(s.duration)}</div>
         ${questionHTML(s.question)}
         <div class="answers">${s.question.options.map((o, i) =>
           `<button class="ans o${i} fade${optionClass(o)}" style="animation-delay:${i * 60}ms" data-i="${i}">${SHAPES[i]}<span>${esc(o)}</span></button>`).join("")}

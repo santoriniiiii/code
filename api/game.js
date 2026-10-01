@@ -1,7 +1,10 @@
 // API del juego en vivo. Estado guardado en Upstash Redis (REST).
 const QUESTIONS = require("./_questions");
 
-const DURATION = 30000; // 30 segundos por pregunta
+// Tiempo por pregunta según su nivel (en milisegundos)
+const DURATIONS = { "FÁCIL": 15000, "INTERMEDIA": 20000, "DIFÍCIL": 25000 };
+const DEFAULT_DURATION = 30000; // preguntas sin nivel
+const durationOf = (i) => DURATIONS[(QUESTIONS[i] || {}).level] || DEFAULT_DURATION;
 const MAX_POINTS = 1000;
 const TTL = 60 * 60 * 24; // 1 día
 const P = "quiz:";
@@ -54,7 +57,7 @@ async function saveState(s) {
 // Pasa a "reveal" si se acabó el tiempo o ya respondieron todos.
 async function settle(s, now) {
   if (s.phase !== "question") return s;
-  let done = now - s.startedAt >= DURATION;
+  let done = now - s.startedAt >= durationOf(s.q);
   if (!done) {
     const [answered, players] = await redis([
       ["HLEN", k(s.gameId, "ans:" + s.q)],
@@ -119,8 +122,8 @@ async function handleGet(req, res, now) {
     gameId: s.gameId,
     q: s.q,
     total: QUESTIONS.length,
-    duration: DURATION,
-    remaining: s.phase === "question" ? Math.max(0, DURATION - (now - s.startedAt)) : 0,
+    duration: durationOf(s.q),
+    remaining: s.phase === "question" ? Math.max(0, durationOf(s.q) - (now - s.startedAt)) : 0,
   };
 
   if (role === "host") {
@@ -207,7 +210,7 @@ async function handlePost(req, res, now) {
     if (!exists) return res.status(400).json({ error: "Jugador no encontrado" });
     const elapsed = Math.max(0, now - s.startedAt);
     const correct = isCorrect(q, choice);
-    const points = correct ? Math.round(MAX_POINTS * (1 - (elapsed / DURATION) / 2)) : 0;
+    const points = correct ? Math.round(MAX_POINTS * (1 - (elapsed / durationOf(s.q)) / 2)) : 0;
     const key = k(s.gameId, "ans:" + s.q);
     const [set] = await redis([
       ["HSETNX", key, pid, JSON.stringify({ c: choice, t: elapsed, p: points })],

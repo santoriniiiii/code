@@ -44,11 +44,11 @@ function questionHTML(q) {
 const LETTERS = ["A", "B", "C", "D"];
 function optionClass(o) { return o.length > 110 ? " xlong" : o.length > 60 ? " long" : ""; }
 
-function timerSVG() {
+function timerSVG(durationMs = 30000) {
   const C = 2 * Math.PI * 27;
   return `<div class="timer" id="timer"><svg width="64" height="64" viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="27"/>
     <circle class="bar" id="timerBar" cx="32" cy="32" r="27" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg>
-    <div class="num" id="timerNum">30</div></div>`;
+    <div class="num" id="timerNum">${Math.round(durationMs / 1000)}</div></div>`;
 }
 function updateTimer(remainingMs, durationMs) {
   const bar = document.getElementById("timerBar"), num = document.getElementById("timerNum"), t = document.getElementById("timer");

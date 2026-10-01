@@ -132,7 +132,7 @@ function render(s) {
     if (set("q:" + s.q, `${bar(s)}<div class="hq">
       <div class="topbar">
         <div class="stat"><div class="n">${s.q + 1}<span style="font-size:24px;color:var(--muted)">/${s.total}</span></div><div class="l">PREGUNTA</div>${s.question.level ? `<div style="margin-top:6px"><span class="lvl ${s.question.level}">${s.question.level}</span></div>` : ""}</div>
-        ${timerSVG()}
+        ${timerSVG(s.duration)}
         <div class="stat"><div class="n" id="answered">0</div><div class="l">RESPUESTAS</div></div>
       </div>
       ${questionHTML(s.question)}

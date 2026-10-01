@@ -1,6 +1,6 @@
 # FarIQ: Quiz
 
-Juego tipo Kahoot en vivo: 30 segundos por pregunta, puntos extra por rapidez y podio al final.
+Juego tipo Kahoot en vivo: 15, 20 o 25 segundos por pregunta según su dificultad, puntos extra por rapidez y podio al final.
 
 ## Archivos
 
@@ -41,5 +41,6 @@ Edita `api/_questions.js`. Cada pregunta tiene esta forma:
 
 ## Ajustes rápidos (en `api/game.js`)
 
-- `DURATION = 30000` → tiempo por pregunta en milisegundos.
+- `DURATIONS` → tiempo por pregunta según su nivel, en milisegundos (FÁCIL 15000, INTERMEDIA 20000, DIFÍCIL 25000).
+- `DEFAULT_DURATION = 30000` → tiempo para preguntas sin nivel.
 - `MAX_POINTS = 1000` → puntos por responder bien al instante (responder al final del tiempo da la mitad).
