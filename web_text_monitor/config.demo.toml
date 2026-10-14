@@ -1,0 +1,48 @@
+# Configuración para la página de demostración local.
+#
+#   Terminal 1:  python main.py demo-server
+#   Terminal 2:  python main.py --config config.demo.toml run
+#
+# El estado de la demo alterna entre "online" y "offline" cada 30 s.
+# Usa archivos de datos propios para no mezclar la demo con el historial real.
+
+[page]
+url = "http://127.0.0.1:8765/"
+label = "Demo local"
+
+[extraction]
+method = "browser"
+selector = "#estado"
+match_policy = "single"
+text_source = "visible"
+element_missing = "unknown"
+reload_each_check = true
+element_timeout_seconds = 5
+
+[matching]
+multiple_states = "conflict"
+
+[[targets]]
+id = "online"
+text = "online"
+mode = "word"
+
+[[targets]]
+id = "offline"
+text = "offline"
+mode = "word"
+
+[confirmation]
+required_observations = 2
+
+[schedule]
+interval_seconds = 5
+
+[errors]
+backoff_max_seconds = 20
+
+[output]
+csv_path = "data/demo_events.csv"
+state_path = "data/demo_state.json"
+log_path = "logs/demo_application.log"
+timezone = "America/Lima"

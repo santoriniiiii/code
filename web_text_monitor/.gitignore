@@ -1,0 +1,19 @@
+# Entorno virtual y cachés de Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Configuración local (puede contener URLs privadas)
+config.toml
+
+# Datos generados: historial, estado, logs y perfil del navegador (cookies de sesión)
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+*.lock
+
+# macOS
+.DS_Store

@@ -1,0 +1,203 @@
+# =============================================================================
+# Configuración del Monitor de textos web
+# =============================================================================
+# Copia este archivo como config.toml y edítalo:   cp config.example.toml config.toml
+# (config.toml está excluido de git porque puede contener URLs privadas).
+#
+# Formato TOML: los textos van entre comillas, true/false sin comillas y las
+# listas entre corchetes. Las líneas que empiezan por # son comentarios.
+# Las rutas relativas se interpretan respecto a la carpeta de este archivo.
+#
+# Comprueba la configuración con:   python main.py check
+# Comprueba la página real con:     python main.py probe
+# =============================================================================
+
+[page]
+# Página que se observa. Debes tener acceso legítimo a ella.
+url = "https://ejemplo.com/estado"
+# Nombre corto que aparecerá en el historial (opcional).
+label = "Mi página"
+
+
+[extraction]
+# Cómo se lee la página:
+#   "browser" -> navegador real (Playwright). Necesario si el texto lo genera
+#                JavaScript, cambia sin recargar, está en un iframe, depende del
+#                CSS o hace falta una sesión iniciada.
+#   "http"    -> solo descarga el HTML (requests + BeautifulSoup). Más ligero;
+#                úsalo cuando `python main.py probe` confirme que basta.
+method = "browser"
+
+# Elemento que se observa. Usa un selector estable (ver README, "Cómo encontrar el selector"):
+#   "#estado"                        -> elemento con id="estado"
+#   "[data-testid='estado-servicio']" -> atributo identificativo
+#   "table#pedidos td.estado"        -> celdas dentro de una tabla concreta
+#   "xpath=//span[@id='estado']"     -> XPath (solo con method = "browser")
+# Evita clases que parezcan generadas automáticamente (p. ej. ".css-1x2y3z").
+# NO copies este ejemplo sin comprobarlo: el selector depende de tu página.
+selector = "#estado"
+
+# Si el elemento está dentro de un <iframe>, el selector del iframe (de fuera
+# hacia dentro si hay varios anidados). Solo con method = "browser".
+# Ejemplo: frame_selectors = ["iframe#panel"]
+frame_selectors = []
+
+# Qué hacer si el selector coincide con varios elementos:
+#   "single" -> se exige exactamente uno; si hay varios, la observación es UNKNOWN.
+#   "first"  -> se usa solo el primero.
+#   "all"    -> se buscan los textos en todos (útil para filas de una tabla).
+match_policy = "single"
+
+# Qué texto se lee (solo con method = "browser"):
+#   "visible" -> solo lo que se ve (excluye partes ocultas con CSS). Recomendado.
+#   "all"     -> todo el texto del DOM, aunque esté oculto.
+text_source = "visible"
+
+# Si el elemento NO existe en la página:
+#   "unknown" -> no se sabe el estado (no se registra ningún cambio). Recomendado.
+#   "absent"  -> equivale a que los textos no están (útil si la web elimina el
+#                elemento cuando, por ejemplo, el servicio se desconecta).
+element_missing = "unknown"
+
+# true  -> se recarga la página en cada comprobación (seguro para páginas que no
+#          se actualizan solas).
+# false -> se carga una vez y se vuelve a leer el DOM (para páginas que se
+#          actualizan solas sin recargar; genera menos tráfico). Tras un error
+#          o si el elemento desaparece, la página se vuelve a cargar.
+reload_each_check = true
+
+# Cuándo se considera cargada la página: "load", "domcontentloaded",
+# "networkidle" (no recomendado por Playwright) o "commit".
+wait_until = "load"
+page_load_timeout_seconds = 30
+# Tiempo máximo de espera a que aparezca el elemento tras cargar la página.
+element_timeout_seconds = 10
+# Espera adicional tras cargar la página y antes de leer (solo "browser").
+# Útil si el elemento muestra primero un marcador como "Cargando…" y JavaScript
+# escribe el valor real después. `python main.py probe` avisa si ocurre.
+settle_seconds = 0
+
+
+[browser]
+# false -> se ve la ventana del navegador (útil para depurar).
+headless = true
+# ""       -> Chromium descargado por Playwright (recomendado).
+# "chrome" -> Google Chrome instalado en el Mac.
+channel = ""
+# Ruta a un ejecutable concreto de Chromium/Chrome (normalmente vacío).
+executable_path = ""
+# Perfil persistente para páginas que exigen iniciar sesión. Ejemplo:
+#   user_data_dir = "data/browser_profile"
+# Después ejecuta `python main.py login` e inicia sesión a mano.
+# Esa carpeta contiene tus cookies de sesión: no la compartas ni la subas a git.
+user_data_dir = ""
+
+
+[http]
+# Solo con method = "http".
+timeout_seconds = 20
+# Identificación del programa ante el servidor (vacío = "web-text-monitor/<versión>").
+user_agent = ""
+
+
+[matching]
+# Distinguir mayúsculas y minúsculas ("Online" frente a "online").
+case_sensitive = false
+# Espacios en blanco:
+#   "collapse" -> varios espacios, tabuladores y saltos de línea cuentan como uno
+#                 y se ignoran al principio y al final. Recomendado.
+#   "strip"    -> solo se ignoran al principio y al final.
+#   "exact"    -> se comparan tal cual.
+whitespace = "collapse"
+# Si aparecen a la vez textos de estados distintos:
+#   "priority" -> gana el que esté antes en la lista [[targets]].
+#   "conflict" -> la observación es UNKNOWN (no se registra ningún cambio).
+#   "combined" -> el estado es la combinación, p. ej. "online+offline".
+multiple_states = "conflict"
+# Si no aparece ninguno de los textos:
+#   "state"   -> estado no_match_state (cuenta como un estado más).
+#   "unknown" -> la observación es UNKNOWN.
+no_match = "state"
+no_match_state = "sin_coincidencia"
+# Caracteres del texto del elemento que se guardan en la columna extracto_texto
+# (0 = no guardar el texto de la página).
+excerpt_max_chars = 200
+
+
+# Textos de interés: un bloque [[targets]] por texto. El orden define la
+# prioridad cuando multiple_states = "priority".
+#   id    -> nombre interno corto (letras, números, _ . -)
+#   text  -> texto que se busca
+#   mode  -> "contains" (aparece en cualquier parte), "word" (palabra completa:
+#            "available" NO coincide dentro de "unavailable"), "exact" (el texto
+#            del elemento es exactamente ese) o "regex" (expresión regular)
+#   state -> estado que representa (por defecto, el id). Varios textos pueden
+#            representar el mismo estado (sinónimos).
+#   case_sensitive -> opcional, sustituye al valor general de [matching].
+[[targets]]
+id = "online"
+text = "online"
+mode = "word"
+state = "online"
+
+[[targets]]
+id = "offline"
+text = "offline"
+mode = "word"
+state = "offline"
+
+
+[confirmation]
+# Observaciones seguidas e iguales necesarias para aceptar un cambio (y la
+# línea base inicial). 1 = inmediato; 2 o más filtra parpadeos breves a costa
+# de confirmar el cambio un intervalo más tarde. No garantiza que el resultado
+# sea correcto: solo aumenta su consistencia.
+required_observations = 2
+# Observaciones UNKNOWN/ERROR mientras se confirma un cambio:
+#   "ignore" -> no interrumpen la cuenta (no aportan información).
+#   "reset"  -> la cuenta vuelve a empezar (exige observaciones estrictamente seguidas).
+unknown_policy = "ignore"
+# Tras N observaciones no válidas seguidas se descarta la línea base y, al
+# recuperarse, se registra una nueva BASELINE en lugar de un cambio (0 = nunca).
+rebaseline_after_failures = 0
+# Al reiniciar el programa, reutilizar el último estado confirmado (si la
+# configuración de lo observado no cambió). Así, un cambio ocurrido con el
+# programa detenido se registra al volver, con la ventana de tiempo en que pasó.
+resume_state = true
+
+
+[schedule]
+# Segundos entre comprobaciones (mínimo 1). Un cambio que empiece y termine
+# entre dos comprobaciones puede no detectarse.
+interval_seconds = 5
+
+
+[errors]
+# Tras errores técnicos seguidos la espera se duplica (5, 10, 20, 40...) hasta este máximo.
+backoff_max_seconds = 60
+# Detener el programa tras N errores técnicos seguidos (0 = no detenerse nunca).
+max_consecutive_errors = 120
+
+
+[output]
+# Historial de eventos (se crea si no existe; nunca se sobrescribe).
+csv_path = "data/events.csv"
+# Separador del CSV: "," o ";" (si Excel muestra todo en una columna, prueba ";"
+# con un archivo NUEVO; no cambies el separador de un CSV que ya tiene datos).
+csv_delimiter = ","
+# Último estado confirmado (para reanudar).
+state_path = "data/state.json"
+# Log técnico con los errores detallados (rota a los 2 MB, guarda 5 archivos).
+log_path = "logs/application.log"
+# DEBUG (registra cada comprobación), INFO, WARNING o ERROR.
+log_level = "INFO"
+timezone = "America/Lima"
+# Tipos de evento que se guardan en el CSV. Elimina los que no quieras.
+# NO_CHANGE nunca se guarda (sería una fila cada 5 segundos).
+record_events = [
+  "BASELINE", "TEXT_APPEARED", "TEXT_DISAPPEARED", "STATE_CHANGED",
+  "UNKNOWN", "ERROR", "RECOVERED", "MONITOR_STARTED", "MONITOR_STOPPED",
+]
+# Mensajes en la terminal: "quiet" (solo eventos), "normal" o "verbose"
+# (añade la duración y el texto leído en cada comprobación).
+terminal = "normal"
