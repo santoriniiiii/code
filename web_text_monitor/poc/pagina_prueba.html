@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Página de prueba del monitor</title>
+</head>
+<body>
+  <h1>Página de prueba del monitor de textos</h1>
+  <section id="panel">
+    <span class="etiqueta">Estado:</span>
+    <!-- 1. Texto presente directamente en el HTML -->
+    <span id="estado-estatico">online</span>
+    <!-- 2. Texto que escribe JavaScript (después de 300 ms) y que cambia cada 1,5 s sin recargar -->
+    <span id="estado-js" data-testid="estado">Cargando…</span>
+    <!-- 3. Elemento oculto con display:none -->
+    <div id="oculto" style="display:none">offline</div>
+    <!-- 4. Elemento visible con un hijo oculto -->
+    <div id="padre">visible <span style="display:none">hijo-oculto</span></div>
+    <!-- 5. Elemento con visibility:hidden -->
+    <div id="invisible" style="visibility:hidden">texto-invisible</div>
+  </section>
+  <!-- 6. Iframe del mismo origen y 7. iframe de otro origen (127.0.0.1 frente a localhost) -->
+  <iframe id="marco" src="/marco.html"></iframe>
+  <iframe id="marco-externo"></iframe>
+  <script>
+    const estados = ["online", "offline"];
+    let i = 0;
+    setTimeout(function cambiar() {
+      document.getElementById("estado-js").textContent = estados[i % 2];
+      i += 1;
+      setTimeout(cambiar, 1500);
+    }, 300);
+    document.getElementById("marco-externo").src =
+      location.protocol + "//127.0.0.1:" + location.port + "/marco.html";
+  </script>
+</body>
+</html>
